@@ -1,2 +1,0 @@
-#lang racket
-(require "make-neural-network.rkt")
