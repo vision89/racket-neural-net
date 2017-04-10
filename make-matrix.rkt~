@@ -1,0 +1,7 @@
+#lang racket
+
+; Author: Dustin Gulley
+; Class: CSC 525
+; Description: Project 4. Represent a matrix and provide accessors/mutators
+; Due date: April 26 2017
+
