@@ -1751,8 +1751,8 @@
  #"this function"
 ) 0 0 24 29 1 #"\n"
 0 0 24 3 16 #"                "
-0 0 17 3 62
-#";between two functions to account for whether or not 0 is used"
+0 0 17 3 61
+#";between two functions to account for whether or not we use 0"
 0 0 24 29 1 #"\n"
 0 0 24 3 18 #"                (("
 0 0 14 3 3 #"eq?"
