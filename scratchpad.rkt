@@ -7,28 +7,9 @@
 
 (define neural-net (make-neural-network 3 3 3 0.3))
 
-(define matrix-a (make-matrix 3 3))
-(define matrix-b (make-matrix 3 3))
-(define matrix-c (make-matrix 2 3))
+(define wih (make-matrix 3 3)) ; hidden input matrix
+(define wio (make-matrix 3 3)) ; hidden output matrix
 
-((matrix-a 'set!) '(1 3 1
-                    2 2 3
-                    3 1 2))
+((matrix-a 'set!) (list-of-random-vals 9 100 100 1/2))
+((matrix-b 'set!) (list-of-random-vals 9 100 100 1/2))
 
-((matrix-b 'set!) '(1 2 3
-                    3 2 1
-                    1 3 2))
-
-; ((matrix-a '*) matrix-b) -> (11 11 8
-;                              11 17 14
-;                              8  14 14)
-
-;
-;
-; ((matrix-a 'set-row-col!) 2 2 3) -> (1 3 1 2 3 3 3 1 2)
-
-; expect
-;
-; ((matrix-a '*) matrix-b)
-; ((matrix-a 'get-row) 2)
-; ((matrix-a 'get-col) 1)

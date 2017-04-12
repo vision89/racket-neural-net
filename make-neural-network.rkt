@@ -1,4 +1,5 @@
 #lang racket
+ (require math/base)
 
 ; Author: Dustin Gulley
 ; Class: CSC 525
@@ -26,6 +27,9 @@
         ; Default to null
         (else (quote ())))
       )))
+
+(define sigmoid-function (lambda (x)
+                           (/ 1 (+ 1 (exp euler.0 (* x -1))))))
 
 ; Provide access to this module within other files
 (provide make-neural-network)
