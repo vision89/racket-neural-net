@@ -12,6 +12,7 @@
 
 (wih 'set! (list-of-random-vals 9 100 100 1/2))
 (wio 'set! (list-of-random-vals 9 100 100 1/2))
+(wio 'get-matrix)
 
 (wio 'whatever)
 
