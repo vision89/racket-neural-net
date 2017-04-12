@@ -19,8 +19,6 @@
                     3 2 1
                     1 3 2))
 
-((matrix-c 'fill-with-random-vals) 0 4)
-
 ; ((matrix-a '*) matrix-b) -> (11 11 8
 ;                              11 17 14
 ;                              8  14 14)
