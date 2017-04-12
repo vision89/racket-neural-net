@@ -10,6 +10,8 @@
 (define wih (make-matrix 3 3)) ; hidden input matrix
 (define wio (make-matrix 3 3)) ; hidden output matrix
 
-((matrix-a 'set!) (list-of-random-vals 9 100 100 1/2))
-((matrix-b 'set!) (list-of-random-vals 9 100 100 1/2))
+(wih 'set! (list-of-random-vals 9 100 100 1/2))
+(wio 'set! (list-of-random-vals 9 100 100 1/2))
+
+(wio 'whatever)
 

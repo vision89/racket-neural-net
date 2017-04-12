@@ -11,21 +11,20 @@
 (define make-neural-network
   (lambda (input-node-count hidden-node-count output-node-count learning-rate)
     
-    ; atom -> <varies>
+    ; <pattern> -> <varies>
     ; Message passing logic for the closure structure
     ; given 'message, expect the identity function (todo: replace identity function)
     ; given 'query, expect the identity function (todo: replace identity function)
-    (lambda (message)
+    (match-lambda*
 
-      (cond
         ; Train the neural network, I'm just returning identity while I develop this
-        ((eq? message 'train) (lambda (a-var) a-var))
+        ((list 'train a-var) a-var)
 
         ; Query the neural network, I'm just returning identity while I develop this
-        ((eq? message 'query) (lambda (a-var) a-var))
+        ((list 'query a-var) a-var)
 
         ; Default to null
-        (else (quote ())))
+        (_ (quote ()))
       )))
 
 (define sigmoid-function (lambda (x)
