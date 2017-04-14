@@ -12,7 +12,7 @@
   (lambda (input-node-count hidden-node-count output-node-count learning-rate)
     
     ; <pattern> -> <varies>
-    ; Message passing logic for the closure structure
+    ; Grammar for a little neural network language
     ; given 'message, expect the identity function (todo: replace identity function)
     ; given 'query, expect the identity function (todo: replace identity function)
     (match-lambda*
