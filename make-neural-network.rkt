@@ -10,6 +10,14 @@
 (define neural-net-lang
   (letrec (
 
+           (replace-nth
+            (lambda (a-list x n)
+              (letrec ((replace-nth-h (lambda (a-list n)
+                             (cond ((null? a-list) (quote ()))
+                                   ((= n 1) (cons x (cdr a-list)))
+                                   (else (cons (car a-list) (replace-nth-h (cdr a-list) (- n 1))))))))
+                (replace-nth-h a-list n))))
+
            (matrix? (lambda (x)
                       (cond ((eq? ':matrix (get-type x)) x)
                             (else (quote ())))))
@@ -18,39 +26,47 @@
                               (cond ((eq? ':neural-network (get-type x)) x)
                                     (else (quote ())))))
 
+           (get-prototype
+            (lambda (x)
+              (car (cdr x))))
+
            (get-type
             (lambda (x)
               (car x)))
 
            (get-input-node-count
             (lambda (x)
-              (cadr x)))
+              (car (get-prototype x))))
+
+           (set-input-node-count
+            (lambda (a-neural-network node-count)
+              (cons (car a-neural-network) (cons node-count (cdr (get-prototype a-neural-network))))))
 
            (get-hidden-node-count
             (lambda (x)
-              (caddr x)))
+              (cadr (get-prototype x))))
 
            (get-output-node-count
             (lambda (x)
-              (cadddr x)))
+              (caddr (get-prototype x))))
 
            (get-learning-rate
             (lambda (x)
-              (car (cddddr x))))
+              (car (cdddr (get-prototype x)))))
 
            (get-weighted-hidden-input
             (lambda (x)
-              (car (cdr (cddddr x)))))
+              (car (cddddr (get-prototype x)))))
 
            (get-weighted-hidden-output
             (lambda (x)
-              (car (cdr (cdr (cddddr x))))))
+              (car (cdr (cddddr (get-prototype x))))))
            
            (create-neural-network
             (lambda (w x y z)
-              (list ':neural-network w x y z
-                    (matrix-lang 'new x x (list-of-random-vals (* x x) 100 100 1/2))
-                    (matrix-lang 'new y y (list-of-random-vals (* y y) 100 100 1/2)))))
+              (list ':neural-network (list w x y z
+                                           (matrix-lang 'new x x (list-of-random-vals (* x x) 100 100 1/2))
+                                           (matrix-lang 'new y y (list-of-random-vals (* y y) 100 100 1/2))))))
            
            ; number -> number
            ; Sigmoid function
@@ -59,22 +75,51 @@
 
            ; matrix matrix -> matrix
            ; Train the neural network
-           (train (lambda (a-neural-network input-m target-m)
-                    (matrix-lang (matrix-lang (get-weighted-hidden-output a-neural-network) '*
-                                              (matrix-lang (matrix-lang (get-weighted-hidden-input a-neural-network) '*
-                                                                        input-m) 'apply activation)) 'apply activation)))
+           (train
+            (lambda (a-neural-network input-m target-m)
+
+              (let* (
+                     (hidden-outputs (matrix-lang (matrix-lang (get-weighted-hidden-input a-neural-network) '* input-m) 'apply activation))
+                     (final-outputs (matrix-lang (matrix-lang (get-weighted-hidden-output a-neural-network) '* hidden-outputs) 'apply activation))
+                     (output-errors (matrix-lang (get-weighted-hidden-input a-neural-network) '* (target-m '- final-outputs)))
+                     (hidden-errors (matrix-lang (get-weighted-hidden-output a-neural-network) '* output-errors))
+                     ;who += learning-rate * (output-errors * final-outputs * (1.0 - final-outputs)) * transpose(hidden-outputs)
+                     (new-who (matrix-lang (get-weighted-hidden-output a-neural-network) '+
+                                           (matrix-lang
+                                            (((matrix-lang output-errors '* final-outputs) '* (matrix-lang final-outputs 'apply (lambda (x) (- 1.0 x))))
+                                             'apply (lambda (x) (* x (get-learning-rate a-neural-network)))) '* (matrix-lang hidden-outputs 'transpose))))
+                     ;whi += learning-rate * (hidden-errors * hidden-outputs * (1.0 - hidden-outputs)) * transpose(input-m)
+                     (new-wih (matrix-lang (get-weighted-hidden-input a-neural-network) '+
+                                           (matrix-lang
+                                            (((matrix-lang hidden-errors '* hidden-outputs) '* (matrix-lang hidden-outputs 'apply (lambda (x) (- 1.0 x))))
+                                             'apply (lambda (x) (* x (get-learning-rate a-neural-network)))) '* (matrix-lang input-m 'transpose))))
+                     (prototype (get-prototype a-neural-network))
+                     )
+                (cons (car a-neural-network) (replace-nth (replace-nth prototype new-who 5) new-wih 6)))))
 
            ; matrix -> matrix
            ; Query the neural network
-           (query (lambda (a-neural-network input-m)
-                    (matrix-lang (matrix-lang (get-weighted-hidden-output a-neural-network) '*
-                                              (matrix-lang (matrix-lang (get-weighted-hidden-input a-neural-network) '*
-                                                                        input-m) 'apply activation)) 'apply activation)))
+           (query
+            (lambda (a-neural-network input-m)
+              (matrix-lang (matrix-lang (get-weighted-hidden-output a-neural-network) '*
+                                        (matrix-lang (matrix-lang (get-weighted-hidden-input a-neural-network) '*
+                                                                  input-m) 'apply activation)) 'apply activation)))
+
+           (is-neural-network-prototype?
+            (lambda (x)
+              (cond ((and (eq? (length x) 6) (number? (car x)) (number? (car (cdr x))) (number? (car (cddr x))) (number? (car (cdddr x))) (matrix? (car (cdr (cdddr x)))) (matrix? (car (cdr (cdr (cdddr x)))))) #t)
+                    (else #f))))
+
+           (try-cast-to-neural-network
+            (lambda (x)
+              (cond ((is-neural-network-prototype? x) (list ':neural-network x))
+                    (else (quote ())))))
+           
            )
 
     ; <pattern> -> <varies>
     ; Grammar for little neural network language
-    ; prototype (type input-node-count hidden-node-count output-node-count learning-rate weighted-hidden-output weighted-hidden-input)
+    ; prototype (type (number number number number matrix matrix))
     ; 'new number number number number    -> neural-network
     ; 'new number number                  -> neural-network
     ; neural-network 'train matrix matrix -> matrix
@@ -84,6 +129,7 @@
       ((list 'new (? number? x) (? number? y)) (create-neural-network x x x y))
       ((list (? neural-network? x) 'train (? matrix? y) (? matrix? z)) (train x y z))
       ((list (? neural-network? x) 'query (? matrix? y)) (query x y))
+      ((list x 'try-cast-to-neural-network) (try-cast-to-neural-network x))
       (x x)
       (_ #f))))
 

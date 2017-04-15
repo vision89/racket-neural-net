@@ -1,2 +1,4 @@
 *~
 compiled
+*.csv
+*.DS_Store
