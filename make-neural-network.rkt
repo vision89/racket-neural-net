@@ -13,60 +13,63 @@
            (replace-nth
             (lambda (a-list x n)
               (letrec ((replace-nth-h (lambda (a-list n)
-                             (cond ((null? a-list) (quote ()))
-                                   ((= n 1) (cons x (cdr a-list)))
-                                   (else (cons (car a-list) (replace-nth-h (cdr a-list) (- n 1))))))))
+                                        (cond ((null? a-list) (quote ()))
+                                              ((= n 1) (cons x (cdr a-list)))
+                                              (else (cons (car a-list) (replace-nth-h (cdr a-list) (- n 1))))))))
                 (replace-nth-h a-list n))))
 
-           (matrix? (lambda (x)
-                      (cond ((eq? ':matrix (get-type x)) x)
-                            (else (quote ())))))
-
-           (neural-network? (lambda (x)
-                              (cond ((eq? ':neural-network (get-type x)) x)
-                                    (else (quote ())))))
-
-           (get-prototype
+           (matrix?
             (lambda (x)
-              (car (cdr x))))
+              (matrix-lang x 'parse-matrix)))
 
-           (get-type
+           (num>=0?
             (lambda (x)
-              (car x)))
+              (cond ((and (number? x) (>= x 0) x))
+                    (else (quote ())))))
+
+           (meets-neural-network-constraints?
+            (lambda (x)
+              (cond ((and (eq? (length x) 6) (num>=0? (car x)) (num>=0? (car (cdr x))) (num>=0? (car (cddr x))) (num>=0? (car (cdddr x)))) x)
+                    (else (quote ())))))
+
+           (neural-network?
+            (lambda (x)
+              (cond ((and (is-neural-network-prototype? x) (meets-neural-network-constraints? x)) x)
+                    (else (quote ())))))
 
            (get-input-node-count
             (lambda (x)
-              (car (get-prototype x))))
+              (car x)))
 
            (set-input-node-count
             (lambda (a-neural-network node-count)
-              (cons (car a-neural-network) (cons node-count (cdr (get-prototype a-neural-network))))))
+              (cons (car a-neural-network) (cons node-count (cdr a-neural-network)))))
 
            (get-hidden-node-count
             (lambda (x)
-              (cadr (get-prototype x))))
+              (cadr x)))
 
            (get-output-node-count
             (lambda (x)
-              (caddr (get-prototype x))))
+              (caddr x)))
 
            (get-learning-rate
             (lambda (x)
-              (car (cdddr (get-prototype x)))))
+              (car (cdddr x))))
 
            (get-weighted-hidden-input
             (lambda (x)
-              (car (cddddr (get-prototype x)))))
+              (car (cddddr x))))
 
            (get-weighted-hidden-output
             (lambda (x)
-              (car (cdr (cddddr (get-prototype x))))))
+              (car (cdr (cddddr x)))))
            
            (create-neural-network
             (lambda (w x y z)
-              (list ':neural-network (list w x y z
-                                           (matrix-lang 'new x x (list-of-random-vals (* x x) 100 100 1/2))
-                                           (matrix-lang 'new y y (list-of-random-vals (* y y) 100 100 1/2))))))
+              (list w x y z
+                    (matrix-lang 'new x x (list-of-random-vals (* x x) 100 100 1/2))
+                    (matrix-lang 'new y y (list-of-random-vals (* y y) 100 100 1/2)))))
            
            ; number -> number
            ; Sigmoid function
@@ -93,9 +96,8 @@
                                            (matrix-lang
                                             (((matrix-lang hidden-errors '* hidden-outputs) '* (matrix-lang hidden-outputs 'apply (lambda (x) (- 1.0 x))))
                                              'apply (lambda (x) (* x (get-learning-rate a-neural-network)))) '* (matrix-lang input-m 'transpose))))
-                     (prototype (get-prototype a-neural-network))
                      )
-                (cons (car a-neural-network) (replace-nth (replace-nth prototype new-who 5) new-wih 6)))))
+                (cons (car a-neural-network) (replace-nth (replace-nth a-neural-network new-who 5) new-wih 6)))))
 
            ; matrix -> matrix
            ; Query the neural network
@@ -119,7 +121,7 @@
 
     ; <pattern> -> <varies>
     ; Grammar for little neural network language
-    ; prototype (type (number number number number matrix matrix))
+    ; prototype (number number number number matrix matrix))
     ; 'new number number number number    -> neural-network
     ; 'new number number                  -> neural-network
     ; neural-network 'train matrix matrix -> matrix
