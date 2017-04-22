@@ -1,5 +1,5 @@
 *~
 compiled
 *.csv
-*.DS_Store
 mnist_readme.txt
+.DS_Store
