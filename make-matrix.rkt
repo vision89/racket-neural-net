@@ -11,11 +11,6 @@
 
            ; *** Parsing Logic ***
 
-           ;(is-prototype?
-           ; (lambda x
-           ;   (cond ((and (eq? (length x) 3) (number? (car x)) (number? (cadr x)) (tuple? (caddr x))) x)
-           ;         (else (quote ())))))
-
            (is-prototype?
             (lambda x
               (cond ((and (eq? (length x) 3) (number? (car x)) (number? (cadr x))) x)
@@ -28,39 +23,20 @@
 
            (tuple?
             (lambda (a-tup)
-                   (let/cc skip
-                   (cond ((null? a-tup) (quote ()))
-                         ((number? (car a-tup)) (cons (car a-tup) (tuple? (cdr a-tup))))
-                         (else (skip (quote ())))))))
+              (let/cc skip
+                (cond ((null? a-tup) (quote ()))
+                      ((number? (car a-tup)) (cons (car a-tup) (tuple? (cdr a-tup))))
+                      (else (skip (quote ())))))))
 
            (matrix-match?
             (lambda x
               (cond ((and (eq? (length x) 3) (num>=0? (car x)) (num>=0? (cadr x))) x)
                     (else (quote ())))))
-
-           ;(matrix-match?
-           ; (lambda x
-           ;   (cond ((and (eq? (length x) 3) (num>=0? (car x)) (num>=0? (cadr x)) (tuple? (caddr x)) (size-match? (car x) (cadr x) (caddr x))) x)
-           ;         (else (quote ())))))
-
            
            (matrix?
             (lambda (x)
-                      (cond ((and (eq? (length x) 3) (is-prototype? (car x) (cadr x) (caddr x)) (matrix-match? (car x) (cadr x) (caddr x))) x)
-                            (else (quote ())))))
-
-           (term?
-            (match-lambda*
-              ((list (? matrix? x)) x)
-              ((list (? matrix? x) '* (? matrix? y)) (list x '* y))
-              ((list (? matrix? x) '* (? term? y)) (list x '* y))
-              ((list (? term? x) '* (? matrix? y)) (list x '* y))
-              ((list (? term? x) '* (? term? y)) (list x '* y))
-              ((list (? matrix? x) '+ (? matrix? y)) (list x '* y))
-              ((list (? matrix? x) '+ (? term? y)) (list x '* y))
-              ((list (? term? x) '+ (? matrix? y)) (list x '* y))
-              ((list (? term? x) '+ (? term? y)) (list x '* y))
-              (_ (quote ()))))
+              (cond ((and (eq? (length x) 3) (is-prototype? (car x) (cadr x) (caddr x)) (matrix-match? (car x) (cadr x) (caddr x))) x)
+                    (else (quote ())))))
 
            (is-matrix?
             (lambda x
@@ -136,7 +112,7 @@
                              (a-list (as-list a-matrix))
                              (b-list (as-list b-matrix))
                              (total-rows (row-count a-matrix))
-                             (total-cols (col-count a-matrix))
+                             (total-cols (col-count b-matrix))
                              )
                          (letrec (
                                   (multiple-add-lists (lambda (a-list b-list)
@@ -147,16 +123,17 @@
                                      (let ((row (get-row a-matrix row-n))
                                            (col (get-col b-matrix col-n)))
                                        (cond ((> row-n total-rows) (quote ()))
-                                             ((= col-n total-rows) (cons (multiple-add-lists row col) (multiply-h (+ 1 row-n) 1)))
+                                             ((> col-n total-cols) (multiply-h (+ 1 row-n) 1))
                                              (else (cons (multiple-add-lists row col) (multiply-h row-n (+ col-n 1)))))))))
-                           (println 'multiplying)(create-matrix total-rows total-cols (multiply-h 1 1))))))
+                           (cond ((= total-rows total-cols) (create-matrix total-rows total-cols (multiply-h 1 1)))
+                                 (else (println 'multiplication-error)(println a-matrix)(println b-matrix) 'error))))))
 
            (apply-each
             (lambda (a-func a-matrix)
-                             (letrec ((apply-each-h (lambda (matrix-list)
-                                                      (cond ((null? matrix-list) (quote ()))
-                                                            (else (cons (a-func (car matrix-list)) (apply-each-h (cdr matrix-list))))))))
-                               (println 'applying:)(println a-matrix)(create-matrix (row-count a-matrix) (col-count a-matrix) (apply-each-h (as-list a-matrix))))))
+              (letrec ((apply-each-h (lambda (matrix-list)
+                                       (cond ((null? matrix-list) (quote ()))
+                                             (else (cons (a-func (car matrix-list)) (apply-each-h (cdr matrix-list))))))))
+                (create-matrix (row-count a-matrix) (col-count a-matrix) (apply-each-h (as-list a-matrix))))))
 
            ; _ -> number
            ; Retrives the number of nodes within the matrix
@@ -168,28 +145,35 @@
            (add
             (lambda (a-matrix b-matrix)
               (letrec ((add-h
-                       (lambda (a-list b-list)
-                         (println 'adding:)(println a-list)(println 'with)(println b-list)
-                         (cond ((or (null? a-list) (null? b-list)) (quote ()))
-                               (else (cons (+ (car a-list) (car b-list)) (add-h (cdr a-list) (cdr b-list))))))))
-                (create-matrix (row-count a-matrix) (col-count a-matrix) (add-h (as-list a-matrix) (as-list b-matrix))))))
+                        (lambda (a-list b-list)
+                          (cond ((or (null? a-list) (null? b-list)) (quote ()))
+                                (else (cons (+ (car a-list) (car b-list)) (add-h (cdr a-list) (cdr b-list))))))))
+                (let ((answer (add-h (as-list a-matrix) (as-list b-matrix))))
+                  (cond ((not (= (* (row-count a-matrix) (col-count b-matrix)) (length answer))) (println 'messedup-add!)(println a-matrix)(println b-matrix)(println answer)(create-matrix (row-count a-matrix) (col-count b-matrix) answer))
+                (else (create-matrix (row-count a-matrix) (col-count b-matrix) answer)))))))
 
            (subtract
             (lambda (a-matrix b-matrix)
               (letrec ((subtract-h
-                       (lambda (a-list b-list)
-                         (println 'subtracting:)(println a-list)(println 'from)(println b-list)
-                         (cond ((or (null? a-list) (null? b-list)) (quote ()))
-                               (else (cons (- (car a-list) (car b-list)) (subtract-h (cdr a-list) (cdr b-list))))))))
-                (create-matrix (row-count a-matrix) (col-count a-matrix) (subtract-h (as-list a-matrix) (as-list b-matrix))))))
+                        (lambda (a-list b-list)
+                          (cond ((or (null? a-list) (null? b-list)) (quote ()))
+                                (else (cons (- (car a-list) (car b-list)) (subtract-h (cdr a-list) (cdr b-list))))))))
+                (let ((answer (subtract-h (as-list a-matrix) (as-list b-matrix))))
+                  (cond ((not (= (* (row-count a-matrix) (col-count b-matrix)) (length answer))) (println 'messedup-subtract!)(println a-matrix)(println b-matrix)(println answer)(create-matrix (row-count a-matrix) (col-count b-matrix) answer))
+                        (else (create-matrix (row-count a-matrix) (col-count b-matrix) answer)))))))
 
-            (transpose
-             (lambda (a-matrix)
-               (let (
-                     (row-c (row-count a-matrix))
-                     (col-c (col-count a-matrix))
-                     )
-                 (create-matrix col-c row-c (as-list a-matrix)))))
+           (transpose
+            (lambda (a-matrix)
+                (create-matrix (col-count a-matrix) (row-count a-matrix) (as-list a-matrix))))
+
+           (dot-product
+            (lambda (a-matrix b-matrix)
+                (letrec ((dot-product-h
+                          (lambda (list-a list-b)
+                            (cond ((or (null? list-a) (null? list-b)) 0)
+                                  (else (+ (* (car list-a) (car list-b)) (dot-product-h (cdr list-a) (cdr list-b))))))))
+                  (dot-product-h (as-list a-matrix) (as-list b-matrix)))))
+
            )
     
     ; <pattern> -> <varies>
@@ -201,56 +185,29 @@
     ; 'new number number list    -> matrix
     ; 'new number list           -> matrix
     ; matrix 'row number         -> list
-    ; term 'row number           -> list
     ; matrix 'col number         -> list
-    ; term 'col number           -> list
     ; matrix '* matrix           -> matrix
-    ; term '* matrix             -> matrix
-    ; matrix '* term             -> matrix
-    ; term '* term               -> matrix
     ; matrix '+ matrix           -> matrix
-    ; term '+ matrix             -> matrix
-    ; matrix '+ term             -> matrix
-    ; term '+ term               -> matrix
     ; matrix '+ matrix           -> matrix
-    ; term '+ matrix             -> matrix
-    ; matrix '+ term             -> matrix
-    ; term '+ term               -> matrix
     ; matrix 'apply function     -> matrix
-    ; term 'apply function       -> matrix
     ; matrix 'count              -> number
-    ; term 'count                -> number
     ; matrix 'transpose          -> matrix
-    ; term 'transpose            -> matrix
     ; var 'is-matrix?            -> boolean    
     (match-lambda*
       ((list 'new (? number? x) (? number? y) (? tuple? z)) (matrix? (list x y z)))
       ((list 'new (? number? x) (? tuple? y)) (matrix? (list x x y)))
-       ((list (? matrix? x) 'row (? number? y)) (get-row x y))
-       ((list (? term? x) 'row (? number? y)) (get-row (matrix-lang x) y))
-       ((list (? matrix? x) 'col (? number? y)) (get-col x y))
-       ((list (? term? x) 'col (? number? y)) (get-col (matrix-lang x) y))
-       ((list (? matrix? x) '* (? matrix? y)) (multiply x y))
-       ((list (? term? x) '* (? matrix? y)) (multiply (matrix-lang x) y))
-       ((list (? matrix? x) '* (? term? y)) (multiply x (matrix-lang y)))
-       ((list (? term? x) '* (? term? y)) (multiply (matrix-lang x) (matrix-lang y)))
-       ((list (? matrix? x) '+ (? matrix? y)) (add x y))
-       ((list (? term? x) '+ (? matrix? y)) (add (matrix-lang x) y))
-       ((list (? matrix? x) '+ (? term? y)) (add x (matrix-lang y)))
-       ((list (? term? x) '+ (? term? y)) (add (matrix-lang x) (matrix-lang y)))
-       ((list (? matrix? x) '- (? matrix? y)) (subtract x y))
-       ((list (? term? x) '- (? matrix? y)) (subtract (matrix-lang x) y))
-       ((list (? matrix? x) '- (? term? y)) (subtract x (matrix-lang y)))
-       ((list (? term? x) '- (? term? y)) (subtract (matrix-lang x) (matrix-lang y)))
-       ((list (? matrix? x) 'apply (? procedure? f)) (apply-each f x))
-       ((list (? term? x) 'apply (? procedure? f)) (apply-each f (matrix-lang x)))
-       ((list (? matrix? x) 'count) (count x))
-       ((list (? term? x) 'count) (count (matrix-lang x)))
-       ((list (? matrix? x) 'transpose) (transpose x))
-       ((list (? term? x) 'transpose) (transpose (matrix-lang x)))
-       ((list x 'is-matrix?) (is-matrix? x))
-       ((list x 'parse-matrix) (matrix? x))
-       ((list x) x)
+      ((list (? matrix? x) 'row (? number? y)) (get-row x y))
+      ((list (? matrix? x) 'col (? number? y)) (get-col x y))
+      ((list (? matrix? x) '* (? matrix? y)) (multiply x y))
+      ((list (? matrix? x) 'dot (? matrix? y)) (dot-product x y))
+      ((list (? matrix? x) '+ (? matrix? y)) (add x y))
+      ((list (? matrix? x) '- (? matrix? y)) (subtract x y))
+      ((list (? matrix? x) 'apply (? procedure? f)) (apply-each f x))
+      ((list (? matrix? x) 'count) (count x))
+      ((list (? matrix? x) 'transpose) (transpose x))
+      ((list x 'is-matrix?) (is-matrix? x))
+      ((list x 'parse-matrix) (matrix? x))
+      ((list x) x)
       (_ #f)
       )))
 

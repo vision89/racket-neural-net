@@ -5,7 +5,7 @@
 ; Author: Dustin Gulley
 ; Class: CSC 525
 ; Description: Project 4.  Initialize and return a neural network.
-; Due date: April 26 2017
+; Due date: April 26 2017r
 
 (define neural-net-lang
   (letrec (
@@ -20,12 +20,10 @@
 
            (matrix?
             (lambda (x)
-              (println 'neural-network-checking-matrix)
               (matrix-lang x 'parse-matrix)))
 
            (meets-neural-network-constraints?
             (lambda (x)
-              (println 'checking-neural-network-constraints)
               (cond ((and (eq? (length x) 3) (> (car (cdr (cdr x))) 0)) x)
                     (else (quote ())))))
 
@@ -36,7 +34,6 @@
 
            (get-learning-rate
             (lambda (x)
-              (println 'getting-learning-rate:)(println x)
               (car (cdr (cdr x)))))
 
            (get-weighted-hidden-input
@@ -56,41 +53,51 @@
            (activation (lambda (x)
                          (/ 1 (+ 1 (expt euler.0 (* x -1))))))
 
+           (activation-prime (lambda (x) (* (/ 1
+                                          (+ 1 (expt euler.0 (* x -1))))
+                                          (/ (expt (* -1 euler.0) (* -1 x)) (+ 1 (expt euler.0 (* x -1)))))))
+                               
            ; matrix matrix -> matrix
            ; Train the neural network
            (train
-            (lambda (a-neural-network input-m target-m)
-
+            (lambda (a-neural-network training-list)
               (let* (
-                     (hidden-outputs (matrix-lang (matrix-lang (get-weighted-hidden-input a-neural-network) '* input-m) 'apply activation))
-                     (final-outputs (matrix-lang (matrix-lang (get-weighted-hidden-output a-neural-network) '* hidden-outputs) 'apply activation))
-                     (output-errors (matrix-lang (get-weighted-hidden-input a-neural-network) '* (matrix-lang target-m '- final-outputs)))
-                     (hidden-errors (matrix-lang (get-weighted-hidden-output a-neural-network) '* output-errors))
+                     ; Forward propogation
+                     (input-m (caar training-list))
+                     (target-m (car (cdr (car training-list))))
+                     (hidden-sum (matrix-lang (get-weighted-hidden-input a-neural-network) '* input-m))
+                     (hidden-result (matrix-lang hidden-sum 'apply activation))
+                     (output-sum (matrix-lang (get-weighted-hidden-output a-neural-network) '* hidden-result))
+                     (output-result (matrix-lang output-sum 'apply activation))
+
+                     ;Back propogation
+                     (error-output-layer (matrix-lang (matrix-lang target-m '- output-result)))
+                     (delta-output-layer-dot (matrix-lang (matrix-lang output-sum 'apply activation-prime) 'dot error-output-layer))
+                     (hidden-output-changes (matrix-lang (matrix-lang (matrix-lang hidden-result 'transpose) 'apply (lambda (x) (* x (get-learning-rate a-neural-network)))) 'apply (lambda (x) (* x delta-output-layer-dot))))
+                     (delta-hidden-layer-dot (matrix-lang (matrix-lang (matrix-lang (get-weighted-hidden-output a-neural-network) 'transpose) 'apply (lambda (x) (* x delta-output-layer-dot))) 'dot (matrix-lang hidden-sum 'apply activation-prime)))
+                     (input-hidden-changes (matrix-lang (matrix-lang (matrix-lang input-m 'transpose) 'apply (lambda (x) (* x delta-hidden-layer-dot))) 'apply (lambda (x) (* x (get-learning-rate a-neural-network)))))
                      ;who += learning-rate * (output-errors * final-outputs * (1.0 - final-outputs)) * transpose(hidden-outputs)
-                     (new-who (matrix-lang (get-weighted-hidden-output a-neural-network) '+
-                                           (matrix-lang
-                                            (matrix-lang (matrix-lang (matrix-lang output-errors '* final-outputs) '* (matrix-lang final-outputs 'apply (lambda (x) (- 1.0 x))))
-                                             'apply (lambda (x) (* x (get-learning-rate a-neural-network)))) '* (matrix-lang hidden-outputs 'transpose))))
+                     (new-who (matrix-lang (get-weighted-hidden-output a-neural-network) '+ input-hidden-changes))
                      ;whi += learning-rate * (hidden-errors * hidden-outputs * (1.0 - hidden-outputs)) * transpose(input-m)
-                     (new-wih (matrix-lang (get-weighted-hidden-input a-neural-network) '+
-                                           (matrix-lang
-                                            (matrix-lang (matrix-lang (matrix-lang hidden-errors '* hidden-outputs) '* (matrix-lang hidden-outputs 'apply (lambda (x) (- 1.0 x))))
-                                             'apply (lambda (x) (* x (get-learning-rate a-neural-network)))) '* (matrix-lang input-m 'transpose))))
-                     )
-                (println 'done)
-                (cons (car a-neural-network) (replace-nth (replace-nth a-neural-network new-wih 1) new-who 2)))))
+                     (new-wih (matrix-lang (get-weighted-hidden-input a-neural-network) '+ hidden-output-changes))
+                     (new-neural-net (replace-nth (replace-nth a-neural-network new-wih 1) new-who 2)))
+                (cond ((null? (cdr training-list)) new-neural-net)
+                      (else (train new-neural-net (cdr training-list)))))))
 
            ; matrix -> matrix
            ; Query the neural network
            (query
             (lambda (a-neural-network input-m)
-              (matrix-lang (matrix-lang (get-weighted-hidden-output a-neural-network) '*
-                                        (matrix-lang (matrix-lang (get-weighted-hidden-input a-neural-network) '*
-                                                                  input-m) 'apply activation)) 'apply activation)))
+              (let* (
+                     ; Forward propogation
+                     (hidden-sum (matrix-lang (get-weighted-hidden-input a-neural-network) '* input-m))
+                     (hidden-result (matrix-lang hidden-sum 'apply activation))
+                     (output-sum (matrix-lang (get-weighted-hidden-output a-neural-network) '* hidden-result))
+                     (output-result (matrix-lang output-sum 'apply activation)))
+                output-result)))
 
            (is-neural-network-prototype?
             (lambda (x)
-              (println 'checking-is-neural-network-prototype)
               (cond ((and (eq? (length x) 3) (matrix? (car x)) (matrix? (car (cdr x))) (number? (car (cdr (cdr x))))) #t)
                     (else #f))))
            
@@ -103,9 +110,9 @@
     ; neural-network 'train matrix matrix -> matrix
     ; neural-network 'quert matrix        -> matrix
     (match-lambda*
-      ((list 'new (? matrix? x) (? matrix? y) (? number? z)) (println 'in-new)(create-neural-network x y z))
-      ((list (? neural-network? x) 'train (? matrix? y) (? matrix? z)) (println 'in-train)(train x y z))
-      ((list (? neural-network? x) 'query (? matrix? y)) (println 'in-query)(query x y))
+      ((list 'new (? matrix? x) (? matrix? y) (? number? z)) (create-neural-network x y z))
+      ((list (? neural-network? y) 'train z) (train y z))
+      ((list (? neural-network? x) 'query (? matrix? y)) (query x y))
       (x (println 'in-identity)x)
       (_ #f))))
 
