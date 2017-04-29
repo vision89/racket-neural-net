@@ -125,8 +125,7 @@
                                        (cond ((> row-n total-rows) (quote ()))
                                              ((> col-n total-cols) (multiply-h (+ 1 row-n) 1))
                                              (else (cons (multiple-add-lists row col) (multiply-h row-n (+ col-n 1)))))))))
-                           (cond ((= total-rows total-cols) (create-matrix total-rows total-cols (multiply-h 1 1)))
-                                 (else (println 'multiplication-error)(println a-matrix)(println b-matrix) 'error))))))
+                           (create-matrix total-rows total-cols (multiply-h 1 1))))))
 
            (apply-each
             (lambda (a-func a-matrix)
@@ -150,7 +149,7 @@
                                 (else (cons (+ (car a-list) (car b-list)) (add-h (cdr a-list) (cdr b-list))))))))
                 (let ((answer (add-h (as-list a-matrix) (as-list b-matrix))))
                   (cond ((not (= (* (row-count a-matrix) (col-count b-matrix)) (length answer))) (println 'messedup-add!)(println a-matrix)(println b-matrix)(println answer)(create-matrix (row-count a-matrix) (col-count b-matrix) answer))
-                (else (create-matrix (row-count a-matrix) (col-count b-matrix) answer)))))))
+                        (else (create-matrix (row-count a-matrix) (col-count b-matrix) answer)))))))
 
            (subtract
             (lambda (a-matrix b-matrix)
@@ -164,15 +163,51 @@
 
            (transpose
             (lambda (a-matrix)
-                (create-matrix (col-count a-matrix) (row-count a-matrix) (as-list a-matrix))))
+              (create-matrix (col-count a-matrix) (row-count a-matrix) (as-list a-matrix))))
 
            (dot-product
             (lambda (a-matrix b-matrix)
-                (letrec ((dot-product-h
-                          (lambda (list-a list-b)
-                            (cond ((or (null? list-a) (null? list-b)) 0)
-                                  (else (+ (* (car list-a) (car list-b)) (dot-product-h (cdr list-a) (cdr list-b))))))))
-                  (dot-product-h (as-list a-matrix) (as-list b-matrix)))))
+              (letrec ((dot-product-h
+                        (lambda (list-a list-b)
+                          (cond ((or (null? list-a) (null? list-b)) 0)
+                                (else (+ (* (car list-a) (car list-b)) (dot-product-h (cdr list-a) (cdr list-b))))))))
+                (dot-product-h (as-list a-matrix) (as-list b-matrix)))))
+
+           (sum (lambda (a-matrix b-matrix)
+                  (let (
+                        (a-list (as-list a-matrix))
+                        (b-list (as-list b-matrix))
+                        (total-rows (row-count a-matrix))
+                        (total-cols (col-count b-matrix))
+                        )
+                    (letrec (
+                             (multiple-add-lists (lambda (a-list b-list)
+                                                   (cond ((or (null? a-list) (null? b-list)) 0)
+                                                         (else (+ (* (car a-list) (car b-list)) (multiple-add-lists (cdr a-list) (cdr b-list)))))))
+                             (sum-h
+                              (lambda (row-n col-n)
+                                (let ((row (get-row a-matrix row-n))
+                                      (col (get-col b-matrix col-n)))
+                                  (cond ((> row-n total-rows) 0)
+                                        ((> col-n total-cols) (sum-h (+ 1 row-n) 1))
+                                        (else (+ (multiple-add-lists row col) (sum-h row-n (+ col-n 1)))))))))
+                      (sum-h 1 1)))))
+
+           (sum-rows-to-list
+            (lambda (m)
+              (let ((total-rows (row-count m)))
+                    (letrec
+                        ((sum-list
+                          (lambda (l)
+                            (cond ((null? l) 0)
+                                  (else (+ (car l) (sum-list (cdr l)))))))
+               
+                         (sum-rows-to-list-h
+                          (lambda (row-num)
+                            (cond ((> row-num total-rows) (quote ()))
+                                  (else (cons (sum-list (get-row m row-num)) (sum-rows-to-list-h (+ row-num 1))))))))
+                      (sum-rows-to-list-h 1)))))
+           
 
            )
     
@@ -205,7 +240,9 @@
       ((list (? matrix? x) 'apply (? procedure? f)) (apply-each f x))
       ((list (? matrix? x) 'count) (count x))
       ((list (? matrix? x) 'transpose) (transpose x))
+      ((list (? matrix? x) 'sum (? matrix? y)) (sum x y))
       ((list x 'is-matrix?) (is-matrix? x))
+      ((list (? is-matrix? x) 'sum-rows-to-list) (sum-rows-to-list x))
       ((list x 'parse-matrix) (matrix? x))
       ((list x) x)
       (_ #f)
