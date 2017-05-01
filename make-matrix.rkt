@@ -1,43 +1,58 @@
 #lang racket
-
 ; Author: Dustin Gulley
 ; Class: CSC 525
 ; Description: Project 4. Represent a matrix and provide accessors/mutators
 ; Due date: April 26 2017
 
+; A small language for using matrixes
 (define matrix-lang
   (letrec (
 
 
            ; *** Parsing Logic ***
 
+           ; s-expr -> s-expr
+           ; Checks if the parameter matches the pattern required to be a matrix.  If so, it returns it, if not it returns null
+           ; given (1 2 (1 2)), expect (1 2 (1 2))
+           ; given (1 2 3 (1 2)), expect null
            (is-prototype?
             (lambda x
               (cond ((and (eq? (length x) 3) (number? (car x)) (number? (cadr x))) x)
                     (else (quote ())))))
 
+           ; number -> number
+           ; Checks if the parameter is a number >= 0.  If so it returns it, if not it returns null.
+           ; given 1, expect 1
+           ; given -1, expect -1
            (num>=0?
             (lambda (x)
               (cond ((and (number? x) (>= x 0) x))
                     (else (quote ())))))
 
-           (tuple?
-            (lambda (a-tup)
+           ; list -> list
+           ; Checks if the parameter is a number >= 0.  If so it returns it, if not it returns null.
+           ; given 1, expect 1
+           ; given -1, expect -1
+           (list-of-numbers?
+            (lambda (a-lon)
               (let/cc skip
-                (cond ((null? a-tup) (quote ()))
-                      ((number? (car a-tup)) (cons (car a-tup) (tuple? (cdr a-tup))))
+                (cond ((null? a-lon) (quote ()))
+                      ((number? (car a-lon)) (cons (car a-lon) (list-of-numbers? (cdr a-lon))))
                       (else (skip (quote ())))))))
 
-           (matrix-match?
-            (lambda x
-              (cond ((and (eq? (length x) 3) (num>=0? (car x)) (num>=0? (cadr x))) x)
-                    (else (quote ())))))
-           
+           ; list -> list
+           ; Checks if the parameter is a matrix, if so it returns it, if not it returns null
+           ; given 1, expect 1
+           ; given -1, expect -1
            (matrix?
             (lambda (x)
-              (cond ((and (eq? (length x) 3) (is-prototype? (car x) (cadr x) (caddr x)) (matrix-match? (car x) (cadr x) (caddr x))) x)
+              (cond ((and (eq? (length x) 3) (is-prototype? (car x) (cadr x) (caddr x)) (is-prototype? (car x) (cadr x) (caddr x))) x)
                     (else (quote ())))))
 
+           ; list -> bool
+           ; Checks if the parameter is a matrix, if so it returns true, if not it returns false
+           ; given 1, expect 1
+           ; given -1, expect -1
            (is-matrix?
             (lambda x
               (cond ((matrix? x) #t)
@@ -46,24 +61,38 @@
 
            ; *** matrix logic ****
 
-           (empty-matrix
-            (lambda ()
-              (list (list 0 0 '(quote ())))))
-
+           ; atom atom atom -> matrix
+           ; Checks if the parameters match the matrix pattern,
+           ; if so it creates a matrix from them,
+           ; if not it returns an empty matrix
+           ; given 1 2 (2 2) expect (1 2 (2 2))
+           ; given 1 2 3 4 5, expect (0 0 ())
            (create-matrix
             (match-lambda*
               ((list (? number? x) (? number? y) (? list? z)) (list x y z))
               ((list (? number? x) (? list? y)) (list x x y))
-              (_ (empty-matrix))))
+              (_ (list 0 0 '(quote ())))))
 
+           ; matrix -> number
+           ; Returns the number of rows in the matrix
+           ; given (1 2 (2 2)) expect 1
+           ; given (0 0 ()), expect 0
            (row-count
             (lambda (x)
               (car x)))
 
+           ; matrix -> number
+           ; Returns the number of columns in the matrix
+           ; given (1 2 (2 2)) expect 2
+           ; given (0 0 ()), expect 0
            (col-count
             (lambda (x)
               (cadr x)))
 
+           ; matrix -> list
+           ; Returns the matrix asa a list
+           ; given (1 2 (2 2)) expect (2 2)
+           ; given (0 0 ()), expect ()
            (as-list
             (lambda (x)
               (caddr x)))
@@ -127,6 +156,9 @@
                                              (else (cons (multiple-add-lists row col) (multiply-h row-n (+ col-n 1)))))))))
                            (create-matrix total-rows total-cols (multiply-h 1 1))))))
 
+           ; function matrix -> matrix
+           ; Applies a function to every element of a matrix
+           ; given (lambda (x) (+ 1 x)) (1 2 (2 2)) expect (1 2 (3 3))
            (apply-each
             (lambda (a-func a-matrix)
               (letrec ((apply-each-h (lambda (matrix-list)
@@ -141,6 +173,9 @@
             (lambda (a-matrix)
               (* (row-count a-matrix) (col-count a-matrix))))
 
+           ; matrix matrix -> matrix
+           ; Adds two matrixes
+           ; given (1 2 (3 3)) (1 2 (2 2)) expect (1 2 (5 5))
            (add
             (lambda (a-matrix b-matrix)
               (letrec ((add-h
@@ -148,9 +183,12 @@
                           (cond ((or (null? a-list) (null? b-list)) (quote ()))
                                 (else (cons (+ (car a-list) (car b-list)) (add-h (cdr a-list) (cdr b-list))))))))
                 (let ((answer (add-h (as-list a-matrix) (as-list b-matrix))))
-                  (cond ((not (= (* (row-count a-matrix) (col-count b-matrix)) (length answer))) (println 'messedup-add!)(println a-matrix)(println b-matrix)(println answer)(create-matrix (row-count a-matrix) (col-count b-matrix) answer))
+                  (cond ((not (= (* (row-count a-matrix) (col-count b-matrix)) (length answer))) (create-matrix (row-count a-matrix) (col-count b-matrix) answer))
                         (else (create-matrix (row-count a-matrix) (col-count b-matrix) answer)))))))
 
+           ; matrix matrix -> matrix
+           ; Subtracts two matrixes
+           ; given (1 2 (3 3)) (1 2 (2 2)) expect (1 2 (1 1))
            (subtract
             (lambda (a-matrix b-matrix)
               (letrec ((subtract-h
@@ -158,57 +196,16 @@
                           (cond ((or (null? a-list) (null? b-list)) (quote ()))
                                 (else (cons (- (car a-list) (car b-list)) (subtract-h (cdr a-list) (cdr b-list))))))))
                 (let ((answer (subtract-h (as-list a-matrix) (as-list b-matrix))))
-                  (cond ((not (= (* (row-count a-matrix) (col-count b-matrix)) (length answer))) (println 'messedup-subtract!)(println a-matrix)(println b-matrix)(println answer)(create-matrix (row-count a-matrix) (col-count b-matrix) answer))
+                  (cond ((not (= (* (row-count a-matrix) (col-count b-matrix)) (length answer))) (create-matrix (row-count a-matrix) (col-count b-matrix) answer))
                         (else (create-matrix (row-count a-matrix) (col-count b-matrix) answer)))))))
 
+           ; matrix -> matrix
+           ; Swaps the row/cols
+           ; given (1 2 (3 3)) expect (2 1 (3 3))
            (transpose
             (lambda (a-matrix)
               (create-matrix (col-count a-matrix) (row-count a-matrix) (as-list a-matrix))))
-
-           (dot-product
-            (lambda (a-matrix b-matrix)
-              (letrec ((dot-product-h
-                        (lambda (list-a list-b)
-                          (cond ((or (null? list-a) (null? list-b)) 0)
-                                (else (+ (* (car list-a) (car list-b)) (dot-product-h (cdr list-a) (cdr list-b))))))))
-                (dot-product-h (as-list a-matrix) (as-list b-matrix)))))
-
-           (sum (lambda (a-matrix b-matrix)
-                  (let (
-                        (a-list (as-list a-matrix))
-                        (b-list (as-list b-matrix))
-                        (total-rows (row-count a-matrix))
-                        (total-cols (col-count b-matrix))
-                        )
-                    (letrec (
-                             (multiple-add-lists (lambda (a-list b-list)
-                                                   (cond ((or (null? a-list) (null? b-list)) 0)
-                                                         (else (+ (* (car a-list) (car b-list)) (multiple-add-lists (cdr a-list) (cdr b-list)))))))
-                             (sum-h
-                              (lambda (row-n col-n)
-                                (let ((row (get-row a-matrix row-n))
-                                      (col (get-col b-matrix col-n)))
-                                  (cond ((> row-n total-rows) 0)
-                                        ((> col-n total-cols) (sum-h (+ 1 row-n) 1))
-                                        (else (+ (multiple-add-lists row col) (sum-h row-n (+ col-n 1)))))))))
-                      (sum-h 1 1)))))
-
-           (sum-rows-to-list
-            (lambda (m)
-              (let ((total-rows (row-count m)))
-                    (letrec
-                        ((sum-list
-                          (lambda (l)
-                            (cond ((null? l) 0)
-                                  (else (+ (car l) (sum-list (cdr l)))))))
-               
-                         (sum-rows-to-list-h
-                          (lambda (row-num)
-                            (cond ((> row-num total-rows) (quote ()))
-                                  (else (cons (sum-list (get-row m row-num)) (sum-rows-to-list-h (+ row-num 1))))))))
-                      (sum-rows-to-list-h 1)))))
            
-
            )
     
     ; <pattern> -> <varies>
@@ -216,33 +213,29 @@
     ; The prototype represents the purely abstract and unconstrained representation of the data-type which may be recognized by matrix lang
     ; prototype: (row col tuple)
     ; The pattern represents the constraints which must be met to be recognized as a matrix by matrix lang
-    ; matrix pattern: ((?number? x) (?>=0? x) (?number? y) (?>=0? y) (?tuple? z) (?size-match? x y z))
+    ; matrix pattern: ((?number? x) (?>=0? x) (?number? y) (?>=0? y) (?list-of-numbers? z) (?size-match? x y z))
     ; 'new number number list    -> matrix
-    ; 'new number list           -> matrix
     ; matrix 'row number         -> list
     ; matrix 'col number         -> list
     ; matrix '* matrix           -> matrix
     ; matrix '+ matrix           -> matrix
-    ; matrix '+ matrix           -> matrix
+    ; matrix '- matrix           -> matrix
     ; matrix 'apply function     -> matrix
     ; matrix 'count              -> number
     ; matrix 'transpose          -> matrix
-    ; var 'is-matrix?            -> boolean    
+    ; matrix 'is-matrix?         -> boolean
+    ; matrix 'parse-matrix       -> matrix
     (match-lambda*
-      ((list 'new (? number? x) (? number? y) (? tuple? z)) (matrix? (list x y z)))
-      ((list 'new (? number? x) (? tuple? y)) (matrix? (list x x y)))
+      ((list 'new (? number? x) (? number? y) (? list-of-numbers? z)) (matrix? (list x y z)))
       ((list (? matrix? x) 'row (? number? y)) (get-row x y))
       ((list (? matrix? x) 'col (? number? y)) (get-col x y))
       ((list (? matrix? x) '* (? matrix? y)) (multiply x y))
-      ((list (? matrix? x) 'dot (? matrix? y)) (dot-product x y))
       ((list (? matrix? x) '+ (? matrix? y)) (add x y))
       ((list (? matrix? x) '- (? matrix? y)) (subtract x y))
       ((list (? matrix? x) 'apply (? procedure? f)) (apply-each f x))
       ((list (? matrix? x) 'count) (count x))
       ((list (? matrix? x) 'transpose) (transpose x))
-      ((list (? matrix? x) 'sum (? matrix? y)) (sum x y))
       ((list x 'is-matrix?) (is-matrix? x))
-      ((list (? is-matrix? x) 'sum-rows-to-list) (sum-rows-to-list x))
       ((list x 'parse-matrix) (matrix? x))
       ((list x) x)
       (_ #f)
